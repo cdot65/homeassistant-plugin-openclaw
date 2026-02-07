@@ -1,0 +1,35 @@
+{
+  "id": "homeassistant",
+  "name": "Home Assistant",
+  "description": "Smart home control via the Home Assistant REST API — query states, call services, view history, fire events, and more",
+  "version": "0.1.0",
+  "entrypoint": "index.ts",
+  "skills": ["skills/homeassistant"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "base_url": {
+        "type": "string",
+        "description": "Home Assistant base URL (overrides HA_BASE_URL env var)"
+      },
+      "token": {
+        "type": "string",
+        "description": "Long-lived access token (overrides HA_TOKEN env var)"
+      }
+    }
+  },
+  "uiHints": {
+    "base_url": {
+      "label": "Base URL",
+      "placeholder": "http://homeassistant.local:8123"
+    },
+    "token": {
+      "label": "Access Token",
+      "placeholder": "Long-lived access token"
+    }
+  },
+  "requires": {
+    "env": ["HA_BASE_URL", "HA_TOKEN"]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "@cdot65/homeassistant-skill",
+  "version": "0.1.0",
+  "description": "Home Assistant skill for OpenClaw - control smart home devices via the HA REST API",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
+  },
+  "keywords": [
+    "openclaw",
+    "skill",
+    "home-assistant",
+    "smart-home",
+    "iot",
+    "rest-api"
+  ],
+  "author": "cdot65",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cdot65/homeassistant-skill-openclaw"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "files": [
+    "README.md",
+    "index.ts",
+    "src/",
+    "skills/",
+    "openclaw.plugin.json"
+  ],
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
