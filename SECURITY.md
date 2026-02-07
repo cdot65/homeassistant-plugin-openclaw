@@ -32,15 +32,15 @@ If you discover a security vulnerability in this project, please report it respo
 
 This security policy covers vulnerabilities in:
 
-- **In scope**: The prisma-airs-plugin code itself (TypeScript scanner, hook, RPC handlers)
-- **Out of scope**: The Prisma AIRS service (report to Palo Alto Networks)
+- **In scope**: The homeassistant-skill plugin code (TypeScript client, tools, RPC handlers)
+- **Out of scope**: Home Assistant itself (report to the [HA project](https://www.home-assistant.io/security/))
 - **Out of scope**: Dependencies (report to respective maintainers)
 
 ## Security Best Practices
 
 When using this plugin:
 
-1. Use environment variables for credentials (`PANW_AI_SEC_API_KEY`)
-2. Never commit API keys to version control
-3. Monitor scan results for unusual patterns
+1. Use environment variables for credentials (`HA_TOKEN`)
+2. Never commit access tokens to version control
+3. Use a dedicated HA user/token with minimal required permissions
 4. Keep plugin dependencies updated (`npm update`)

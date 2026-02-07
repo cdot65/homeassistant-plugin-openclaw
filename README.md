@@ -1,274 +1,165 @@
-# Prisma AIRS Plugin
+# Home Assistant Skill for OpenClaw
 
-[![npm version](https://img.shields.io/npm/v/@cdot65/prisma-airs)](https://www.npmjs.com/package/@cdot65/prisma-airs)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://cdot65.github.io/prisma-airs-plugin-openclaw/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-OpenClaw plugin for [Prisma AIRS](https://www.paloaltonetworks.com/prisma/prisma-ai-runtime-security) (AI Runtime Security) from Palo Alto Networks.
-
-**[Documentation](https://cdot65.github.io/prisma-airs-plugin-openclaw/)** | **[Release Notes](RELEASE_NOTES.md)**
+OpenClaw plugin for [Home Assistant](https://www.home-assistant.io/) — query states, call services, view history, fire events, and more via the HA REST API.
 
 ## Overview
 
-Pure TypeScript plugin with direct AIRS API integration via `fetch()`.
+Pure TypeScript plugin with direct Home Assistant REST API integration via `fetch()`.
 
 **Provides:**
-- **Gateway RPC**: `prisma-airs.scan` - Programmatic scanning
-- **Agent Tool**: `prisma_airs_scan` - Agent-initiated scans
-- **5 Security Hooks**: Defense-in-depth protection
-  - `prisma-airs-guard` - Bootstrap reminder
-  - `prisma-airs-audit` - Audit logging with scan caching
-  - `prisma-airs-context` - Threat warning injection
-  - `prisma-airs-outbound` - Response scanning/blocking/masking
-  - `prisma-airs-tools` - Tool gating during threats
-
-**Detection capabilities:**
-- Prompt injection detection
-- Data leakage prevention (DLP)
-- Malicious URL filtering
-- Toxic content detection
-- Database security
-- Malicious code detection
-- AI agent protection
-- Contextual grounding
-- Custom topic guardrails
+- **Gateway RPC**: `homeassistant.status`, `homeassistant.states`, `homeassistant.call_service`
+- **16 Agent Tools**: Full coverage of the HA REST API (states, services, history, events, calendars, templates, etc.)
+- **CLI Commands**: `openclaw homeassistant`, `openclaw ha-states`
+- **Skill**: Agent instructions via `SKILL.md` for smart home control workflows
 
 ## Quick Start
 
 ### 1. Install
 
 ```bash
-# From npm (recommended)
-openclaw plugins install @cdot65/prisma-airs
-
-# Or from local directory
-openclaw plugins install ./prisma-airs-plugin
+openclaw plugins install ./homeassistant-skill
 ```
 
-### 2. Restart Gateway
+### 2. Configure
+
+Set environment variables for your Home Assistant instance:
 
 ```bash
-openclaw gateway restart
+export HA_BASE_URL="http://homeassistant.local:8123"
+export HA_TOKEN="your-long-lived-access-token"
 ```
 
-### 3. Configure API Key
+To create a long-lived access token in Home Assistant:
+1. Go to your HA profile page (`/profile`)
+2. Scroll to **Long-Lived Access Tokens**
+3. Click **Create Token**
+
+### 3. Restart Gateway
 
 ```bash
-export PANW_AI_SEC_API_KEY="your-key-from-strata-cloud-manager"
-```
-
-For systemd service (Linux):
-
-```bash
-mkdir -p ~/.config/systemd/user/openclaw-gateway.service.d
-cat > ~/.config/systemd/user/openclaw-gateway.service.d/env.conf << 'EOF'
-[Service]
-Environment=PANW_AI_SEC_API_KEY=your-key-here
-EOF
-systemctl --user daemon-reload
 openclaw gateway restart
 ```
 
 ### 4. Verify
 
 ```bash
-# Check plugin loaded
-openclaw plugins list | grep prisma
-
 # Check status
-openclaw prisma-airs
+openclaw homeassistant
 
-# Test scan
-openclaw prisma-airs-scan "test message"
+# Get all entity states
+openclaw ha-states
+
+# Get a single entity
+openclaw ha-states light.living_room
 
 # Test via RPC
-openclaw gateway call prisma-airs.scan --params '{"prompt":"test"}'
+openclaw gateway call homeassistant.status
 ```
+
+## Agent Tools
+
+| Tool | Description |
+|------|-------------|
+| `ha_get_states` | Get all entity states |
+| `ha_get_state` | Get single entity state |
+| `ha_set_state` | Create/update entity state |
+| `ha_call_service` | Call a service (control devices) |
+| `ha_get_services` | List available services |
+| `ha_get_history` | Get state change history |
+| `ha_get_logbook` | Get logbook entries |
+| `ha_fire_event` | Fire a custom event |
+| `ha_get_events` | List event types |
+| `ha_render_template` | Render Jinja2 template |
+| `ha_get_calendars` | List calendars / get events |
+| `ha_get_config` | Get HA server config |
+| `ha_get_components` | List loaded components |
+| `ha_get_error_log` | Get error log |
+| `ha_check_config` | Validate configuration.yaml |
+| `ha_handle_intent` | Handle a named intent |
 
 ## Plugin Structure
 
 ```
-prisma-airs-plugin/
+homeassistant-skill/
 ├── package.json
 ├── openclaw.plugin.json          # Plugin manifest
-├── index.ts                      # Plugin entrypoint
+├── index.ts                      # Plugin entrypoint (RPC + tools + CLI)
 ├── src/
-│   └── scanner.ts                # TypeScript scanner
-└── hooks/prisma-airs-guard/      # Bootstrap reminder hook
-    ├── HOOK.md
-    └── handler.ts
+│   ├── types.ts                  # TypeScript interfaces for HA REST API
+│   ├── client.ts                 # HTTP client wrapping HA REST API
+│   └── client.test.ts            # Client unit tests (mocked fetch)
+└── skills/homeassistant/
+    └── SKILL.md                  # Agent instructions for smart home control
 ```
 
 ## Configuration
 
-### Plugin Config
-
-```yaml
-plugins:
-  prisma-airs:
-    profile_name: "default"       # SCM profile name
-    app_name: "openclaw"          # App metadata
-    reminder_enabled: true        # Enable bootstrap hook
-```
-
-### Where to Configure What
-
 | Setting | Where |
 |---------|-------|
-| API key | Environment variable `PANW_AI_SEC_API_KEY` |
-| Profile name | Plugin config |
-| Detection services | Strata Cloud Manager |
-| Actions (allow/block) | Strata Cloud Manager |
-| DLP patterns | Strata Cloud Manager |
-
-**Important**: Detection services and actions are configured in [Strata Cloud Manager](https://docs.paloaltonetworks.com/ai-runtime-security/activation-and-onboarding/ai-runtime-security-api-intercept-overview/onboard-api-runtime-security-api-intercept-in-scm), not in plugin config.
-
-### API Key Setup
-
-1. Log in to Strata Cloud Manager
-2. Navigate to **Settings** → **Access Keys**
-3. Create a new access key for AI Security
-4. Set the environment variable:
-
-```bash
-export PANW_AI_SEC_API_KEY="your-api-key"
-```
+| Base URL | Env var `HA_BASE_URL` or plugin config `base_url` |
+| Access token | Env var `HA_TOKEN` or plugin config `token` |
+| Timeout | Env var `HA_TIMEOUT_MS` (optional, default 10s) |
 
 ## Usage
 
 ### Gateway RPC
 
 ```bash
-# Scan a prompt
-openclaw gateway call prisma-airs.scan --params '{"prompt":"user input"}'
+# Check connection status
+openclaw gateway call homeassistant.status
 
-# Scan prompt and response
-openclaw gateway call prisma-airs.scan --params '{"prompt":"user input","response":"ai output"}'
+# Get all states
+openclaw gateway call homeassistant.states
 
-# Check status
-openclaw gateway call prisma-airs.status
-```
+# Get single entity
+openclaw gateway call homeassistant.states --params '{"entity_id":"light.living_room"}'
 
-### Agent Tool
-
-Agents can use the `prisma_airs_scan` tool directly:
-
-```json
-{
-  "tool": "prisma_airs_scan",
-  "params": {
-    "prompt": "content to scan",
-    "response": "optional AI response",
-    "sessionId": "conversation-123",
-    "trId": "tx-001"
-  }
-}
+# Call a service
+openclaw gateway call homeassistant.call_service --params '{"domain":"light","service":"turn_on","data":{"entity_id":"light.living_room"}}'
 ```
 
 ### CLI
 
 ```bash
-# Scan text
-openclaw prisma-airs-scan "message to scan"
+# Plugin status
+openclaw homeassistant
+
+# All entity states
+openclaw ha-states
+
+# Single entity (with attributes)
+openclaw ha-states sensor.temperature
 
 # JSON output
-openclaw prisma-airs-scan --json "message"
-
-# Specify profile
-openclaw prisma-airs-scan --profile strict "message"
-
-# Check status
-openclaw prisma-airs
+openclaw ha-states --json
 ```
 
-### Programmatic (TypeScript)
+## Development
 
-```typescript
-import { scan, ScanResult } from "prisma-airs-plugin";
+Run from the `homeassistant-skill/` directory:
 
-const result: ScanResult = await scan({
-  prompt: "user message",
-  response: "ai response",
-  sessionId: "conv-123",
-  trId: "tx-001",
-  appName: "my-agent",
-});
-
-if (result.action === "block") {
-  console.log("Blocked:", result.categories);
-}
-```
-
-## Bootstrap Hook
-
-The `prisma-airs-guard` hook injects a security reminder into agent bootstrap, instructing agents to:
-
-1. Scan suspicious content using `prisma_airs_scan` tool
-2. Block requests with `action="block"` response
-3. Handle warnings appropriately
-
-Disable via config:
-```yaml
-plugins:
-  prisma-airs:
-    reminder_enabled: false
-```
-
-## Detection Categories
-
-| Category | Description |
-|----------|-------------|
-| `prompt_injection` | Injection attack detected |
-| `dlp_prompt` | Sensitive data in prompt |
-| `dlp_response` | Sensitive data in response |
-| `url_filtering_prompt` | Malicious URL in prompt |
-| `url_filtering_response` | Malicious URL in response |
-| `toxic_content` | Harmful content detected |
-| `db_security` | Dangerous database query |
-| `malicious_code` | Harmful code detected |
-| `ungrounded` | Response not grounded in context |
-| `topic_violation` | Topic guardrail triggered |
-| `safe` | No issues detected |
-
-## ScanResult
-
-```typescript
-interface ScanResult {
-  action: "allow" | "warn" | "block";
-  severity: "SAFE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  categories: string[];
-  scanId: string;
-  reportId: string;
-  profileName: string;
-  promptDetected: { injection: boolean; dlp: boolean; urlCats: boolean };
-  responseDetected: { dlp: boolean; urlCats: boolean };
-  sessionId?: string;
-  trId?: string;
-  latencyMs: number;
-  error?: string;
-}
+```bash
+npm run check       # Full suite: typecheck + lint + format + test
+npm run typecheck   # TypeScript type checking
+npm run lint        # ESLint
+npm run lint:fix    # ESLint with auto-fix
+npm run format      # Prettier format
+npm run test        # Run tests once
+npm run test:watch  # Watch mode
 ```
 
 ## Requirements
 
 - Node.js 18+
-- Prisma AIRS API key (from Strata Cloud Manager)
-- API Security Profile configured in SCM
-
-## Documentation
-
-Full documentation available at **[cdot65.github.io/prisma-airs-plugin-openclaw](https://cdot65.github.io/prisma-airs-plugin-openclaw/)**
-
-- [Getting Started](https://cdot65.github.io/prisma-airs-plugin-openclaw/getting-started/installation/)
-- [Architecture](https://cdot65.github.io/prisma-airs-plugin-openclaw/architecture/overview/)
-- [Hook Reference](https://cdot65.github.io/prisma-airs-plugin-openclaw/hooks/)
-- [Configuration](https://cdot65.github.io/prisma-airs-plugin-openclaw/reference/configuration/)
+- Home Assistant instance with REST API access
+- Long-lived access token
 
 ## Links
 
-- [Prisma AIRS Documentation](https://docs.paloaltonetworks.com/ai-runtime-security)
-- [API Security Profile Setup](https://docs.paloaltonetworks.com/ai-runtime-security/administration/prevent-network-security-threats/api-intercept-create-configure-security-profile)
-- [API Reference](https://pan.dev/prisma-airs/)
+- [Home Assistant REST API docs](https://developers.home-assistant.io/docs/api/rest/)
+- [Home Assistant](https://www.home-assistant.io/)
 
 ## License
 
