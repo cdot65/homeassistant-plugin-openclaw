@@ -15,6 +15,8 @@ cd homeassistant-plugin && npm run test:watch
 cd homeassistant-plugin && npm run check
 
 # Install plugin to OpenClaw
+npm install @cdot65/homeassistant
+# Or from local path
 openclaw plugins install ./homeassistant-plugin
 
 # Check status via CLI

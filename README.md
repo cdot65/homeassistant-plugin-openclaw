@@ -2,67 +2,77 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-OpenClaw plugin for [Home Assistant](https://www.home-assistant.io/) — query states, call services, view history, fire events, and more via the HA REST API.
+OpenClaw plugin wrapping the [Home Assistant](https://www.home-assistant.io/) REST API in pure TypeScript. Query states, call services, view history, fire events, and more.
 
-## Overview
-
-Pure TypeScript plugin with direct Home Assistant REST API integration via `fetch()`.
-
-**Provides:**
-- **Gateway RPC**: `homeassistant.status`, `homeassistant.states`, `homeassistant.call_service`
-- **17 Agent Tools**: Full coverage of the HA REST API (states, services, history, events, calendars, templates, etc.)
-- **CLI Commands**: `openclaw homeassistant`, `openclaw ha-states`
-- **Skill**: Agent instructions via `SKILL.md` for smart home control workflows
-
-## Quick Start
-
-### 1. Install
+## Installation
 
 ```bash
-openclaw plugins install ./homeassistant-plugin
+npm install @cdot65/homeassistant
 ```
 
-### 2. Configure
+Or via the OpenClaw CLI:
 
-Set environment variables for your Home Assistant instance:
+```bash
+openclaw plugins install @cdot65/homeassistant
+```
+
+Then restart the gateway:
+
+```bash
+openclaw gateway restart
+```
+
+## Configuration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `HA_BASE_URL` | Yes | -- | Home Assistant base URL (e.g. `http://homeassistant.local:8123`) |
+| `HA_TOKEN` | Yes | -- | Long-lived access token |
+| `HA_TIMEOUT_MS` | No | `10000` | Request timeout in milliseconds |
 
 ```bash
 export HA_BASE_URL="http://homeassistant.local:8123"
 export HA_TOKEN="your-long-lived-access-token"
 ```
 
-To create a long-lived access token in Home Assistant:
-1. Go to your HA profile page (`/profile`)
-2. Scroll to **Long-Lived Access Tokens**
-3. Click **Create Token**
+Plugin config fields `base_url` and `token` override the corresponding env vars when set.
 
-### 3. Restart Gateway
+**Creating an access token:** In Home Assistant, go to Profile > Long-Lived Access Tokens > Create Token.
+
+## Verify
 
 ```bash
-openclaw gateway restart
+openclaw homeassistant
+openclaw ha-states
+openclaw gateway call homeassistant.status
 ```
 
-### 4. Verify
+## Usage
+
+### CLI
 
 ```bash
-# Check status
-openclaw homeassistant
+openclaw homeassistant              # connection status
+openclaw ha-states                   # all entity states
+openclaw ha-states light.bedroom     # single entity
+openclaw ha-states --json            # JSON output
+```
 
-# Get all entity states
-openclaw ha-states
+### Gateway RPC
 
-# Get a single entity
-openclaw ha-states light.living_room
-
-# Test via RPC
+```bash
 openclaw gateway call homeassistant.status
+openclaw gateway call homeassistant.states --params '{"entity_id":"light.living_room"}'
+openclaw gateway call homeassistant.call_service --params '{"domain":"light","service":"turn_on","data":{"entity_id":"light.living_room"}}'
 ```
 
 ## Agent Tools
 
+17 tools covering the full HA REST API:
+
 | Tool | Description |
 |------|-------------|
-| `ha_get_states` | Get entity states (optional `domain` filter) |
+| `ha_get_states` | Get entity states (optional domain filter) |
 | `ha_get_state` | Get single entity state |
 | `ha_set_state` | Create/update entity state |
 | `ha_delete_state` | Delete an entity's state |
@@ -80,87 +90,21 @@ openclaw gateway call homeassistant.status
 | `ha_check_config` | Validate configuration.yaml |
 | `ha_handle_intent` | Handle a named intent |
 
-## Plugin Structure
-
-```
-homeassistant-plugin/
-├── package.json
-├── openclaw.plugin.json          # Plugin manifest
-├── index.ts                      # Plugin entrypoint (RPC + tools + CLI)
-├── src/
-│   ├── types.ts                  # TypeScript interfaces for HA REST API
-│   ├── client.ts                 # HTTP client wrapping HA REST API
-│   └── client.test.ts            # Client unit tests (mocked fetch)
-└── skills/homeassistant/
-    └── SKILL.md                  # Agent instructions for smart home control
-```
-
-## Configuration
-
-| Setting | Where |
-|---------|-------|
-| Base URL | Env var `HA_BASE_URL` or plugin config `base_url` |
-| Access token | Env var `HA_TOKEN` or plugin config `token` |
-| Timeout | Env var `HA_TIMEOUT_MS` (optional, default 10s) |
-
-## Usage
-
-### Gateway RPC
-
-```bash
-# Check connection status
-openclaw gateway call homeassistant.status
-
-# Get all states
-openclaw gateway call homeassistant.states
-
-# Get single entity
-openclaw gateway call homeassistant.states --params '{"entity_id":"light.living_room"}'
-
-# Call a service
-openclaw gateway call homeassistant.call_service --params '{"domain":"light","service":"turn_on","data":{"entity_id":"light.living_room"}}'
-```
-
-### CLI
-
-```bash
-# Plugin status
-openclaw homeassistant
-
-# All entity states
-openclaw ha-states
-
-# Single entity (with attributes)
-openclaw ha-states sensor.temperature
-
-# JSON output
-openclaw ha-states --json
-```
-
-## Development
-
-Run from the `homeassistant-plugin/` directory:
-
-```bash
-npm run check       # Full suite: typecheck + lint + format + test
-npm run typecheck   # TypeScript type checking
-npm run lint        # ESLint
-npm run lint:fix    # ESLint with auto-fix
-npm run format      # Prettier format
-npm run test        # Run tests once
-npm run test:watch  # Watch mode
-```
-
 ## Requirements
 
 - Node.js 18+
-- Home Assistant instance with REST API access
+- Home Assistant instance with REST API enabled
 - Long-lived access token
 
-## Links
+## Development
 
-- [Home Assistant REST API docs](https://developers.home-assistant.io/docs/api/rest/)
-- [Home Assistant](https://www.home-assistant.io/)
+From `homeassistant-plugin/`:
+
+```bash
+npm run check       # typecheck + lint + format + test
+npm test            # tests only
+npm run test:watch  # watch mode
+```
 
 ## License
 
