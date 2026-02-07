@@ -19,6 +19,7 @@ import {
   getStates,
   getState,
   setState,
+  deleteState,
   getEvents,
   fireEvent,
   getServices,
@@ -32,6 +33,8 @@ import {
   checkConfig,
   handleIntent,
 } from "./src/client";
+
+import type { HAConfig } from "./src/types";
 
 // ── Plugin config interface ─────────────────────────────────────────
 
@@ -78,15 +81,21 @@ interface PluginApi {
   };
   registerGatewayMethod: (
     name: string,
-    handler: (
-      ctx: { respond: (ok: boolean, data: unknown) => void; params?: unknown },
-    ) => void | Promise<void>
+    handler: (ctx: {
+      respond: (ok: boolean, data: unknown) => void;
+      params?: unknown;
+    }) => void | Promise<void>
   ) => void;
   registerTool: (tool: {
     name: string;
     description: string;
     parameters: ToolParameters;
     execute: (_id: string, params: Record<string, unknown>) => Promise<ToolResult>;
+  }) => void;
+  registerCommand?: (cmd: {
+    name: string;
+    description: string;
+    handler: () => Promise<{ text: string }>;
   }) => void;
   registerCli: (setup: (ctx: { program: unknown }) => void, opts: { commands: string[] }) => void;
   registerPluginHooksFromDir?: (dir: string) => void;
@@ -105,10 +114,45 @@ function formatToolResult(data: unknown): ToolResult {
 export default function register(api: PluginApi): void {
   api.logger.info("Home Assistant plugin loaded");
 
+  // ── Resolve config from plugin config or env vars ─────────────
+
+  const pluginCfg = api.config?.plugins?.entries?.homeassistant?.config;
+  const resolvedConfig: HAConfig | undefined =
+    pluginCfg?.base_url && pluginCfg?.token
+      ? {
+          baseUrl: pluginCfg.base_url.replace(/\/+$/, ""),
+          token: pluginCfg.token,
+          timeoutMs: process.env.HA_TIMEOUT_MS
+            ? parseInt(process.env.HA_TIMEOUT_MS, 10)
+            : undefined,
+        }
+      : undefined;
+
+  // ── Auto-reply command: /ha ────────────────────────────────────
+
+  api.registerCommand?.({
+    name: "ha",
+    description: "Quick Home Assistant status check",
+    handler: async () => {
+      if (!isConfigured(resolvedConfig)) {
+        return { text: "HA: not configured — set HA_BASE_URL + HA_TOKEN or plugin config" };
+      }
+      try {
+        const result = await getApiStatus(resolvedConfig);
+        if (result.ok) {
+          return { text: `HA: connected (${result.latencyMs}ms)` };
+        }
+        return { text: `HA: error — ${result.error}` };
+      } catch (err) {
+        return { text: `HA: error — ${err instanceof Error ? err.message : String(err)}` };
+      }
+    },
+  });
+
   // ── RPC: homeassistant.status ───────────────────────────────────
 
   api.registerGatewayMethod("homeassistant.status", ({ respond }) => {
-    const configured = isConfigured();
+    const configured = isConfigured(resolvedConfig);
     if (!configured) {
       respond(true, {
         plugin: "homeassistant",
@@ -120,7 +164,7 @@ export default function register(api: PluginApi): void {
     }
     (async () => {
       try {
-        const result = await getApiStatus();
+        const result = await getApiStatus(resolvedConfig);
         respond(true, {
           plugin: "homeassistant",
           version: "0.1.0",
@@ -143,12 +187,20 @@ export default function register(api: PluginApi): void {
     (async () => {
       try {
         const entityId = params?.entity_id as string | undefined;
+        const domain = params?.domain as string | undefined;
         if (entityId) {
-          const result = await getState(entityId);
+          const result = await getState(entityId, resolvedConfig);
           respond(result.ok, result.ok ? result.data : { error: result.error });
         } else {
-          const result = await getStates();
-          respond(result.ok, result.ok ? result.data : { error: result.error });
+          const result = await getStates(resolvedConfig);
+          if (!result.ok) {
+            respond(false, { error: result.error });
+            return;
+          }
+          const data = domain
+            ? result.data.filter((e) => e.entity_id.startsWith(domain + "."))
+            : result.data;
+          respond(true, data);
         }
       } catch (err) {
         respond(false, { error: err instanceof Error ? err.message : String(err) });
@@ -173,9 +225,15 @@ export default function register(api: PluginApi): void {
           return;
         }
 
-        const result = await callService(domain, service, serviceData, {
-          returnResponse,
-        });
+        const result = await callService(
+          domain,
+          service,
+          serviceData,
+          {
+            returnResponse,
+          },
+          resolvedConfig
+        );
         respond(result.ok, result.ok ? result.data : { error: result.error });
       } catch (err) {
         respond(false, { error: err instanceof Error ? err.message : String(err) });
@@ -188,16 +246,28 @@ export default function register(api: PluginApi): void {
   api.registerTool({
     name: "ha_get_states",
     description:
-      "Get all entity states from Home Assistant. Returns every entity's current state, " +
-      "attributes, and last_changed timestamp. Use ha_get_state for a single entity.",
+      "Get entity states from Home Assistant. Returns current state, " +
+      "attributes, and last_changed timestamp. Use ha_get_state for a single entity. " +
+      'Optionally filter by domain (e.g. "light", "sensor").',
     parameters: {
       type: "object",
-      properties: {},
+      properties: {
+        domain: {
+          type: "string",
+          description:
+            'Filter to a specific domain (e.g. "light", "sensor", "switch"). ' +
+            "Omit to get all entities.",
+        },
+      },
     },
-    async execute(): Promise<ToolResult> {
-      const result = await getStates();
+    async execute(_id: string, params: Record<string, unknown>): Promise<ToolResult> {
+      const result = await getStates(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
-      return formatToolResult(result.data);
+      const domain = params.domain as string | undefined;
+      const data = domain
+        ? result.data.filter((e) => e.entity_id.startsWith(domain + "."))
+        : result.data;
+      return formatToolResult(data);
     },
   });
 
@@ -217,7 +287,7 @@ export default function register(api: PluginApi): void {
       required: ["entity_id"],
     },
     async execute(_id: string, params: Record<string, unknown>): Promise<ToolResult> {
-      const result = await getState(params.entity_id as string);
+      const result = await getState(params.entity_id as string, resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -268,7 +338,9 @@ export default function register(api: PluginApi): void {
       const result = await callService(
         params.domain as string,
         params.service as string,
-        data
+        data,
+        undefined,
+        resolvedConfig
       );
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
@@ -285,7 +357,7 @@ export default function register(api: PluginApi): void {
       properties: {},
     },
     async execute(): Promise<ToolResult> {
-      const result = await getServices();
+      const result = await getServices(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -321,12 +393,15 @@ export default function register(api: PluginApi): void {
       required: ["entity_id"],
     },
     async execute(_id: string, params: Record<string, unknown>): Promise<ToolResult> {
-      const result = await getHistory({
-        filterEntityId: params.entity_id as string,
-        startTime: params.start_time as string | undefined,
-        endTime: params.end_time as string | undefined,
-        minimalResponse: params.minimal_response === "true",
-      });
+      const result = await getHistory(
+        {
+          filterEntityId: params.entity_id as string,
+          startTime: params.start_time as string | undefined,
+          endTime: params.end_time as string | undefined,
+          minimalResponse: params.minimal_response === "true",
+        },
+        resolvedConfig
+      );
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -360,7 +435,7 @@ export default function register(api: PluginApi): void {
           return formatToolResult({ error: "Invalid JSON in event_data" });
         }
       }
-      const result = await fireEvent(params.event_type as string, data);
+      const result = await fireEvent(params.event_type as string, data, resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -370,7 +445,7 @@ export default function register(api: PluginApi): void {
     name: "ha_render_template",
     description:
       "Render a Home Assistant Jinja2 template. " +
-      'Use this to evaluate expressions like "{{ states(\'sensor.temperature\') }}" ' +
+      "Use this to evaluate expressions like \"{{ states('sensor.temperature') }}\" " +
       "or build dynamic content using HA state data.",
     parameters: {
       type: "object",
@@ -378,14 +453,13 @@ export default function register(api: PluginApi): void {
         template: {
           type: "string",
           description:
-            "Jinja2 template string to render " +
-            "(e.g. \"{{ states('sensor.temperature') }}\")",
+            "Jinja2 template string to render " + "(e.g. \"{{ states('sensor.temperature') }}\")",
         },
       },
       required: ["template"],
     },
     async execute(_id: string, params: Record<string, unknown>): Promise<ToolResult> {
-      const result = await renderTemplate(params.template as string);
+      const result = await renderTemplate(params.template as string, resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult({ rendered: result.data });
     },
@@ -426,12 +500,38 @@ export default function register(api: PluginApi): void {
           return formatToolResult({ error: "Invalid JSON in attributes" });
         }
       }
-      const result = await setState(params.entity_id as string, {
-        state: params.state as string,
-        attributes,
-      });
+      const result = await setState(
+        params.entity_id as string,
+        {
+          state: params.state as string,
+          attributes,
+        },
+        resolvedConfig
+      );
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
+    },
+  });
+
+  api.registerTool({
+    name: "ha_delete_state",
+    description:
+      "Delete an entity's state from Home Assistant. " +
+      "Only removes the state object, not the device itself.",
+    parameters: {
+      type: "object",
+      properties: {
+        entity_id: {
+          type: "string",
+          description: 'The entity ID to delete (e.g. "sensor.custom_value")',
+        },
+      },
+      required: ["entity_id"],
+    },
+    async execute(_id: string, params: Record<string, unknown>): Promise<ToolResult> {
+      const result = await deleteState(params.entity_id as string, resolvedConfig);
+      if (!result.ok) return formatToolResult({ error: result.error });
+      return formatToolResult({ deleted: params.entity_id });
     },
   });
 
@@ -457,11 +557,14 @@ export default function register(api: PluginApi): void {
       },
     },
     async execute(_id: string, params: Record<string, unknown>): Promise<ToolResult> {
-      const result = await getLogbook({
-        entity: params.entity_id as string | undefined,
-        startTime: params.start_time as string | undefined,
-        endTime: params.end_time as string | undefined,
-      });
+      const result = await getLogbook(
+        {
+          entity: params.entity_id as string | undefined,
+          startTime: params.start_time as string | undefined,
+          endTime: params.end_time as string | undefined,
+        },
+        resolvedConfig
+      );
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -493,12 +596,13 @@ export default function register(api: PluginApi): void {
       if (params.entity_id && params.start && params.end) {
         const result = await getCalendarEvents(
           params.entity_id as string,
-          { start: params.start as string, end: params.end as string }
+          { start: params.start as string, end: params.end as string },
+          resolvedConfig
         );
         if (!result.ok) return formatToolResult({ error: result.error });
         return formatToolResult(result.data);
       }
-      const result = await getCalendars();
+      const result = await getCalendars(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -511,7 +615,7 @@ export default function register(api: PluginApi): void {
     description: "Get the current Home Assistant error log.",
     parameters: { type: "object", properties: {} },
     async execute(): Promise<ToolResult> {
-      const result = await getErrorLog();
+      const result = await getErrorLog(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult({ log: result.data });
     },
@@ -522,7 +626,7 @@ export default function register(api: PluginApi): void {
     description: "Check if the Home Assistant configuration.yaml is valid.",
     parameters: { type: "object", properties: {} },
     async execute(): Promise<ToolResult> {
-      const result = await checkConfig();
+      const result = await checkConfig(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -556,7 +660,7 @@ export default function register(api: PluginApi): void {
           return formatToolResult({ error: "Invalid JSON in data" });
         }
       }
-      const result = await handleIntent({ name: params.name as string, data });
+      const result = await handleIntent({ name: params.name as string, data }, resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -567,7 +671,7 @@ export default function register(api: PluginApi): void {
     description: "List all available event types and their listener counts in Home Assistant.",
     parameters: { type: "object", properties: {} },
     async execute(): Promise<ToolResult> {
-      const result = await getEvents();
+      const result = await getEvents(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -580,7 +684,7 @@ export default function register(api: PluginApi): void {
       "version, components, and unit system.",
     parameters: { type: "object", properties: {} },
     async execute(): Promise<ToolResult> {
-      const result = await getConfig_();
+      const result = await getConfig_(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -591,7 +695,7 @@ export default function register(api: PluginApi): void {
     description: "List all currently loaded Home Assistant components/integrations.",
     parameters: { type: "object", properties: {} },
     async execute(): Promise<ToolResult> {
-      const result = await getComponents();
+      const result = await getComponents(resolvedConfig);
       if (!result.ok) return formatToolResult({ error: result.error });
       return formatToolResult(result.data);
     },
@@ -608,7 +712,7 @@ export default function register(api: PluginApi): void {
         .command("homeassistant")
         .description("Show Home Assistant plugin status")
         .action(async () => {
-          const configured = isConfigured();
+          const configured = isConfigured(resolvedConfig);
           console.log("Home Assistant Plugin Status");
           console.log("----------------------------");
           console.log(`Version: 0.1.0`);
@@ -617,7 +721,7 @@ export default function register(api: PluginApi): void {
             console.log("\nSet HA_BASE_URL and HA_TOKEN environment variables");
             return;
           }
-          const result = await getApiStatus();
+          const result = await getApiStatus(resolvedConfig);
           console.log(`API: ${result.ok ? "connected" : "unreachable"}`);
           console.log(`Latency: ${result.latencyMs}ms`);
           if (result.error) console.log(`Error: ${result.error}`);
@@ -629,7 +733,7 @@ export default function register(api: PluginApi): void {
         .option("--json", "Output as JSON")
         .action(async (entityId: string | undefined, opts: Record<string, string>) => {
           if (entityId) {
-            const result = await getState(entityId);
+            const result = await getState(entityId, resolvedConfig);
             if (opts.json) {
               console.log(JSON.stringify(result.data, null, 2));
             } else {
@@ -646,7 +750,7 @@ export default function register(api: PluginApi): void {
               }
             }
           } else {
-            const result = await getStates();
+            const result = await getStates(resolvedConfig);
             if (!result.ok) {
               console.log(`Error: ${result.error}`);
               return;
@@ -678,6 +782,7 @@ export {
   getStates,
   getState,
   setState,
+  deleteState,
   callService,
   getServices,
   getHistory,

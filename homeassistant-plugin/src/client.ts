@@ -51,8 +51,9 @@ function getConfig(): HAConfig {
   };
 }
 
-/** Check whether required env vars are set. */
-export function isConfigured(): boolean {
+/** Check whether HA credentials are available (via explicit config or env vars). */
+export function isConfigured(config?: HAConfig): boolean {
+  if (config?.baseUrl && config?.token) return true;
   return Boolean(process.env.HA_BASE_URL && process.env.HA_TOKEN);
 }
 
@@ -283,9 +284,7 @@ export async function renderTemplate(
 }
 
 /** POST /api/config/core/check_config — Check configuration validity. */
-export async function checkConfig(
-  config?: HAConfig
-): Promise<HAClientResult<ConfigCheckResult>> {
+export async function checkConfig(config?: HAConfig): Promise<HAClientResult<ConfigCheckResult>> {
   return request<ConfigCheckResult>("POST", "/api/config/core/check_config", {}, config);
 }
 

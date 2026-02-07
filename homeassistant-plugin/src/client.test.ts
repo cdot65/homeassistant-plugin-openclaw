@@ -91,6 +91,18 @@ describe("isConfigured", () => {
     delete process.env.HA_TOKEN;
     expect(isConfigured()).toBe(false);
   });
+
+  it("returns true when explicit config has both baseUrl and token", () => {
+    delete process.env.HA_BASE_URL;
+    delete process.env.HA_TOKEN;
+    expect(isConfigured({ baseUrl: "http://ha:8123", token: "tok" })).toBe(true);
+  });
+
+  it("returns false when explicit config is missing token", () => {
+    delete process.env.HA_BASE_URL;
+    delete process.env.HA_TOKEN;
+    expect(isConfigured({ baseUrl: "http://ha:8123", token: "" })).toBe(false);
+  });
 });
 
 describe("getApiStatus", () => {
@@ -421,10 +433,7 @@ describe("getHistory", () => {
     const fetchMock = mockFetchResponse(history);
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await getHistory(
-      { filterEntityId: "sensor.temperature" },
-      TEST_CONFIG
-    );
+    const result = await getHistory({ filterEntityId: "sensor.temperature" }, TEST_CONFIG);
 
     expect(result.ok).toBe(true);
     expect(result.data).toHaveLength(1);
@@ -562,10 +571,7 @@ describe("renderTemplate", () => {
     const fetchMock = mockFetchResponse("72 °F", 200, "text/plain");
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await renderTemplate(
-      "{{ states('sensor.temperature') }} °F",
-      TEST_CONFIG
-    );
+    const result = await renderTemplate("{{ states('sensor.temperature') }} °F", TEST_CONFIG);
 
     expect(result.ok).toBe(true);
     expect(result.data).toBe("72 °F");
@@ -610,13 +616,12 @@ describe("handleIntent", () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it("handles an intent with data", async () => {
-    const fetchMock = mockFetchResponse({ speech: { plain: { speech: "Timer set for 30 seconds" } } });
+    const fetchMock = mockFetchResponse({
+      speech: { plain: { speech: "Timer set for 30 seconds" } },
+    });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await handleIntent(
-      { name: "SetTimer", data: { seconds: "30" } },
-      TEST_CONFIG
-    );
+    const result = await handleIntent({ name: "SetTimer", data: { seconds: "30" } }, TEST_CONFIG);
 
     expect(result.ok).toBe(true);
 

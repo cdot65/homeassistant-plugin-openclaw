@@ -26,6 +26,8 @@ export default [
         Record: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        AbortController: "readonly",
+        RequestInit: "readonly",
       },
     },
     plugins: {

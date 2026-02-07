@@ -1,7 +1,15 @@
 ---
 name: homeassistant
 description: Control smart home devices and query Home Assistant via its REST API
-metadata: {"openclaw": {"requires": {"env": ["HA_BASE_URL", "HA_TOKEN"]}, "primaryEnv": "HA_TOKEN", "emoji": "🏠"}}
+metadata:
+  {
+    "openclaw":
+      {
+        "requires": { "env": ["HA_BASE_URL", "HA_TOKEN"] },
+        "primaryEnv": "HA_TOKEN",
+        "emoji": "🏠",
+      },
+  }
 ---
 
 # Home Assistant Skill
@@ -12,7 +20,7 @@ You have access to a Home Assistant instance via the following tools. Use them t
 
 ### Querying state
 
-- **ha_get_states** — List ALL entity states. Returns every entity's current state, attributes, and timestamps. Useful for broad overviews but can be large; prefer `ha_get_state` for specific entities.
+- **ha_get_states** `domain?` — List entity states. Optionally filter by domain (e.g. `domain="light"`). Returns current state, attributes, and timestamps. Can be large without a filter; prefer `ha_get_state` for a single entity.
 - **ha_get_state** `entity_id` — Get a single entity's current state and attributes.
 - **ha_get_history** `entity_id` `start_time?` `end_time?` `minimal_response?` — Get historical state changes. `entity_id` can be comma-separated for multiple entities. Defaults to the last 24 hours.
 - **ha_get_logbook** `entity_id?` `start_time?` `end_time?` — Get event log entries. Filters to a single entity or shows all.
@@ -29,6 +37,7 @@ You have access to a Home Assistant instance via the following tools. Use them t
   - Set thermostat: `domain="climate"` `service="set_temperature"` `entity_id="climate.main"` `service_data='{"temperature": 72}'`
   - Trigger automation: `domain="automation"` `service="trigger"` `entity_id="automation.morning_routine"`
 - **ha_set_state** `entity_id` `state` `attributes?` — Update an entity's state representation in HA. Note: this does NOT control physical devices (use `ha_call_service` for that). Useful for creating virtual sensors or updating input helpers.
+- **ha_delete_state** `entity_id` — Delete an entity's state from HA. Only removes the state object, not the device.
 
 ### Events and services
 
@@ -52,29 +61,30 @@ You have access to a Home Assistant instance via the following tools. Use them t
 ### Entity IDs
 
 Entity IDs follow the format `<domain>.<object_id>`:
+
 - `light.living_room`, `switch.kitchen_plug`, `sensor.temperature`
 - `climate.main_thermostat`, `lock.front_door`, `cover.garage`
 - `automation.morning_lights`, `script.bedtime`, `scene.movie_night`
 
 ### Common service calls
 
-| Action | Domain | Service | Notes |
-|--------|--------|---------|-------|
-| Turn on | `light` / `switch` / `fan` | `turn_on` | Add brightness, color via service_data |
-| Turn off | `light` / `switch` / `fan` | `turn_off` | |
-| Toggle | `light` / `switch` / `fan` | `toggle` | |
-| Lock | `lock` | `lock` | |
-| Unlock | `lock` | `unlock` | |
-| Open | `cover` | `open_cover` | Garage doors, blinds |
-| Close | `cover` | `close_cover` | |
-| Set temp | `climate` | `set_temperature` | `{"temperature": 72}` |
-| Set mode | `climate` | `set_hvac_mode` | `{"hvac_mode": "heat"}` |
-| Play | `media_player` | `media_play` | |
-| Pause | `media_player` | `media_pause` | |
-| Volume | `media_player` | `volume_set` | `{"volume_level": 0.5}` |
-| Trigger | `automation` | `trigger` | |
-| Run | `script` | `turn_on` | or call script.<name> directly |
-| Activate | `scene` | `turn_on` | |
+| Action   | Domain                     | Service           | Notes                                  |
+| -------- | -------------------------- | ----------------- | -------------------------------------- |
+| Turn on  | `light` / `switch` / `fan` | `turn_on`         | Add brightness, color via service_data |
+| Turn off | `light` / `switch` / `fan` | `turn_off`        |                                        |
+| Toggle   | `light` / `switch` / `fan` | `toggle`          |                                        |
+| Lock     | `lock`                     | `lock`            |                                        |
+| Unlock   | `lock`                     | `unlock`          |                                        |
+| Open     | `cover`                    | `open_cover`      | Garage doors, blinds                   |
+| Close    | `cover`                    | `close_cover`     |                                        |
+| Set temp | `climate`                  | `set_temperature` | `{"temperature": 72}`                  |
+| Set mode | `climate`                  | `set_hvac_mode`   | `{"hvac_mode": "heat"}`                |
+| Play     | `media_player`             | `media_play`      |                                        |
+| Pause    | `media_player`             | `media_pause`     |                                        |
+| Volume   | `media_player`             | `volume_set`      | `{"volume_level": 0.5}`                |
+| Trigger  | `automation`               | `trigger`         |                                        |
+| Run      | `script`                   | `turn_on`         | or call script.<name> directly         |
+| Activate | `scene`                    | `turn_on`         |                                        |
 
 ### Workflow
 
