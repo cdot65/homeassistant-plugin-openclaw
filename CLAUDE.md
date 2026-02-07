@@ -6,97 +6,112 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run tests
-cd prisma-airs-plugin && npm test
+cd homeassistant-skill && npm test
 
 # Run tests in watch mode
-cd prisma-airs-plugin && npm run test:watch
+cd homeassistant-skill && npm run test:watch
+
+# Full check suite (typecheck + lint + format + test)
+cd homeassistant-skill && npm run check
 
 # Install plugin to OpenClaw
-openclaw plugins install ./prisma-airs-plugin
+openclaw plugins install ./homeassistant-skill
 
-# Test scan via CLI
-openclaw prisma-airs-scan "test message"
+# Check status via CLI
+openclaw homeassistant
 
-# Test scan via RPC
-openclaw gateway call prisma-airs.scan --params '{"prompt":"test"}'
+# Get states via CLI
+openclaw ha-states [entity_id]
 
-# Check status
-openclaw prisma-airs
+# Test via RPC
+openclaw gateway call homeassistant.status
+openclaw gateway call homeassistant.states --params '{"entity_id":"light.living_room"}'
+openclaw gateway call homeassistant.call_service --params '{"domain":"light","service":"turn_on","data":{"entity_id":"light.living_room"}}'
 ```
 
 ## Architecture
 
-Pure TypeScript OpenClaw plugin wrapping Prisma AIRS REST API.
+OpenClaw **plugin + skill** wrapping the Home Assistant REST API in pure TypeScript.
 
 **Components:**
-- `prisma-airs-plugin/src/scanner.ts` - TypeScript scanner with direct `fetch()` to AIRS API
-- `prisma-airs-plugin/index.ts` - Plugin entrypoint with RPC method + agent tool registration
-- `prisma-airs-plugin/hooks/prisma-airs-guard/` - Bootstrap reminder hook
+- `homeassistant-skill/src/types.ts` - TypeScript interfaces for all HA REST API types
+- `homeassistant-skill/src/client.ts` - HTTP client with direct `fetch()` to HA REST API
+- `homeassistant-skill/index.ts` - Plugin entrypoint (RPC methods + agent tools + CLI)
+- `homeassistant-skill/skills/homeassistant/SKILL.md` - Skill instructions for the agent
+- `homeassistant-skill/openclaw.plugin.json` - Plugin manifest (ships the skill)
 
 **Data flow:**
 ```
-Agent → Gateway RPC → prisma-airs.scan (TypeScript) → fetch() → AIRS API
+Agent → SKILL.md instructions → ha_* tools → client.ts → fetch() → HA REST API
   or
-Agent → prisma_airs_scan tool → scan() → fetch() → AIRS API
+Agent → Gateway RPC → homeassistant.* methods → client.ts → fetch() → HA REST API
+  or
+User → CLI (openclaw homeassistant) → client.ts → fetch() → HA REST API
 ```
 
 **Key types:**
-- `Action`: "allow" | "warn" | "block"
-- `Severity`: "SAFE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
-- `ScanRequest`: prompt, response, sessionId, trId, profileName, appName, appUser, aiModel
-- `ScanResult`: action, severity, categories, scanId, reportId, promptDetected, responseDetected
+- `HAConfig`: baseUrl, token, timeoutMs
+- `HAClientResult<T>`: ok, status, data, latencyMs, error
+- `EntityState`: entity_id, state, attributes, last_changed, last_updated
 
-## Config: Plugin vs Strata Cloud Manager
+## Config
 
 | Setting | Where to Configure |
 |---------|-------------------|
-| API key | Env var `PANW_AI_SEC_API_KEY` |
-| Profile name | Plugin config |
-| App name | Plugin config |
-| Detection services | Strata Cloud Manager |
-| Actions (allow/block) | Strata Cloud Manager |
-| DLP patterns, URL categories | Strata Cloud Manager |
+| Base URL | Env var `HA_BASE_URL` |
+| Access token | Env var `HA_TOKEN` |
+| Timeout | Env var `HA_TIMEOUT_MS` (optional, default 10s) |
 
-## AIRS API
+## Home Assistant REST API
 
-**Endpoint:** `https://service.api.aisecurity.paloaltonetworks.com/v1/scan/sync/request`
+**Base URL:** `http://<HA_IP>:8123/api/`
 
-**Headers:**
-- `x-pan-token`: API key
-- `Content-Type`: application/json
+**Auth header:** `Authorization: Bearer <token>`
 
-**Request:**
-```json
-{
-  "ai_profile": { "profile_name": "default" },
-  "contents": [{ "prompt": "...", "response": "..." }],
-  "metadata": { "app_name": "openclaw" },
-  "tr_id": "optional",
-  "session_id": "optional"
-}
-```
+**Key endpoints:**
+- `GET /api/` — API status
+- `GET /api/config` — Server configuration
+- `GET /api/states` — All entity states
+- `GET /api/states/<entity_id>` — Single entity state
+- `POST /api/states/<entity_id>` — Create/update state
+- `DELETE /api/states/<entity_id>` — Delete entity
+- `GET /api/services` — Available services
+- `POST /api/services/<domain>/<service>` — Call a service
+- `GET /api/events` — Event types
+- `POST /api/events/<event_type>` — Fire an event
+- `GET /api/history/period/<timestamp>` — State history
+- `GET /api/logbook/<timestamp>` — Logbook entries
+- `GET /api/error_log` — Error log (plain text)
+- `GET /api/calendars` — Calendar list
+- `GET /api/calendars/<entity_id>` — Calendar events
+- `POST /api/template` — Render Jinja2 template
+- `POST /api/config/core/check_config` — Validate config
+- `POST /api/intent/handle` — Handle intent
 
-**Response:** action, category, scan_id, report_id, prompt_detected, response_detected
+## Agent Tools
 
-## Detection Categories
-
-| Category | Detection Service |
-|----------|------------------|
-| `prompt_injection` | Prompt Injection Detection |
-| `dlp_prompt` | Sensitive Data (prompt) |
-| `dlp_response` | Sensitive Data (response) |
-| `url_filtering_prompt` | Malicious URL (prompt) |
-| `url_filtering_response` | Malicious URL (response) |
-| `toxic_content` | Toxic Content |
-| `db_security` | Database Security |
-| `malicious_code` | Malicious Code |
-| `ungrounded` | Contextual Grounding |
-| `topic_violation` | Custom Topic Guardrails |
-| `safe` | No threats detected |
+| Tool | Description |
+|------|-------------|
+| `ha_get_states` | Get all entity states |
+| `ha_get_state` | Get single entity state |
+| `ha_set_state` | Create/update entity state |
+| `ha_call_service` | Call a service (control devices) |
+| `ha_get_services` | List available services |
+| `ha_get_history` | Get state change history |
+| `ha_get_logbook` | Get logbook entries |
+| `ha_fire_event` | Fire a custom event |
+| `ha_get_events` | List event types |
+| `ha_render_template` | Render Jinja2 template |
+| `ha_get_calendars` | List calendars / get events |
+| `ha_get_config` | Get HA server config |
+| `ha_get_components` | List loaded components |
+| `ha_get_error_log` | Get error log |
+| `ha_check_config` | Validate configuration.yaml |
+| `ha_handle_intent` | Handle a named intent |
 
 ## Development
 
-Run from `prisma-airs-plugin/` directory:
+Run from `homeassistant-skill/` directory:
 
 ```bash
 npm run check       # Full suite: typecheck + lint + format + test
@@ -108,11 +123,5 @@ npm run test        # Run tests once
 npm run test:watch  # Watch mode
 ```
 
-**Pre-commit hook** runs automatically on commit:
-1. Type check
-2. Lint + format staged files
-3. Run tests
-
 Test files:
-- `src/scanner.test.ts` - Scanner unit tests (mocked fetch)
-- `hooks/prisma-airs-guard/handler.test.ts` - Hook handler tests
+- `src/client.test.ts` - Client unit tests (mocked fetch, 33 tests)
