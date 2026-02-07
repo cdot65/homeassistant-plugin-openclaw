@@ -32,7 +32,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 This security policy covers vulnerabilities in:
 
-- **In scope**: The homeassistant-skill plugin code (TypeScript client, tools, RPC handlers)
+- **In scope**: The homeassistant-plugin plugin code (TypeScript client, tools, RPC handlers)
 - **Out of scope**: Home Assistant itself (report to the [HA project](https://www.home-assistant.io/security/))
 - **Out of scope**: Dependencies (report to respective maintainers)
 

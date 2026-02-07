@@ -1,4 +1,4 @@
-# Home Assistant Skill for OpenClaw
+# Home Assistant Plugin for OpenClaw
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -10,7 +10,7 @@ Pure TypeScript plugin with direct Home Assistant REST API integration via `fetc
 
 **Provides:**
 - **Gateway RPC**: `homeassistant.status`, `homeassistant.states`, `homeassistant.call_service`
-- **16 Agent Tools**: Full coverage of the HA REST API (states, services, history, events, calendars, templates, etc.)
+- **17 Agent Tools**: Full coverage of the HA REST API (states, services, history, events, calendars, templates, etc.)
 - **CLI Commands**: `openclaw homeassistant`, `openclaw ha-states`
 - **Skill**: Agent instructions via `SKILL.md` for smart home control workflows
 
@@ -19,7 +19,7 @@ Pure TypeScript plugin with direct Home Assistant REST API integration via `fetc
 ### 1. Install
 
 ```bash
-openclaw plugins install ./homeassistant-skill
+openclaw plugins install ./homeassistant-plugin
 ```
 
 ### 2. Configure
@@ -62,9 +62,10 @@ openclaw gateway call homeassistant.status
 
 | Tool | Description |
 |------|-------------|
-| `ha_get_states` | Get all entity states |
+| `ha_get_states` | Get entity states (optional `domain` filter) |
 | `ha_get_state` | Get single entity state |
 | `ha_set_state` | Create/update entity state |
+| `ha_delete_state` | Delete an entity's state |
 | `ha_call_service` | Call a service (control devices) |
 | `ha_get_services` | List available services |
 | `ha_get_history` | Get state change history |
@@ -82,7 +83,7 @@ openclaw gateway call homeassistant.status
 ## Plugin Structure
 
 ```
-homeassistant-skill/
+homeassistant-plugin/
 ├── package.json
 ├── openclaw.plugin.json          # Plugin manifest
 ├── index.ts                      # Plugin entrypoint (RPC + tools + CLI)
@@ -138,7 +139,7 @@ openclaw ha-states --json
 
 ## Development
 
-Run from the `homeassistant-skill/` directory:
+Run from the `homeassistant-plugin/` directory:
 
 ```bash
 npm run check       # Full suite: typecheck + lint + format + test

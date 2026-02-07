@@ -8,8 +8,8 @@
 
 - **Home Assistant REST API client** — pure TypeScript with direct `fetch()`, no external dependencies
 - **Gateway RPC** — `homeassistant.status`, `homeassistant.states`, `homeassistant.call_service`
-- **16 agent tools** — full HA REST API coverage:
-  - State management: `ha_get_states`, `ha_get_state`, `ha_set_state`
+- **17 agent tools** — full HA REST API coverage:
+  - State management: `ha_get_states`, `ha_get_state`, `ha_set_state`, `ha_delete_state`
   - Device control: `ha_call_service`
   - Discovery: `ha_get_services`, `ha_get_events`, `ha_get_components`
   - History/logging: `ha_get_history`, `ha_get_logbook`, `ha_get_error_log`

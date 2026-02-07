@@ -6,16 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run tests
-cd homeassistant-skill && npm test
+cd homeassistant-plugin && npm test
 
 # Run tests in watch mode
-cd homeassistant-skill && npm run test:watch
+cd homeassistant-plugin && npm run test:watch
 
 # Full check suite (typecheck + lint + format + test)
-cd homeassistant-skill && npm run check
+cd homeassistant-plugin && npm run check
 
 # Install plugin to OpenClaw
-openclaw plugins install ./homeassistant-skill
+openclaw plugins install ./homeassistant-plugin
 
 # Check status via CLI
 openclaw homeassistant
@@ -34,11 +34,11 @@ openclaw gateway call homeassistant.call_service --params '{"domain":"light","se
 OpenClaw **plugin + skill** wrapping the Home Assistant REST API in pure TypeScript.
 
 **Components:**
-- `homeassistant-skill/src/types.ts` - TypeScript interfaces for all HA REST API types
-- `homeassistant-skill/src/client.ts` - HTTP client with direct `fetch()` to HA REST API
-- `homeassistant-skill/index.ts` - Plugin entrypoint (RPC methods + agent tools + CLI)
-- `homeassistant-skill/skills/homeassistant/SKILL.md` - Skill instructions for the agent
-- `homeassistant-skill/openclaw.plugin.json` - Plugin manifest (ships the skill)
+- `homeassistant-plugin/src/types.ts` - TypeScript interfaces for all HA REST API types
+- `homeassistant-plugin/src/client.ts` - HTTP client with direct `fetch()` to HA REST API
+- `homeassistant-plugin/index.ts` - Plugin entrypoint (RPC methods + agent tools + CLI)
+- `homeassistant-plugin/skills/homeassistant/SKILL.md` - Skill instructions for the agent
+- `homeassistant-plugin/openclaw.plugin.json` - Plugin manifest (ships the skill)
 
 **Data flow:**
 ```
@@ -92,9 +92,10 @@ User → CLI (openclaw homeassistant) → client.ts → fetch() → HA REST API
 
 | Tool | Description |
 |------|-------------|
-| `ha_get_states` | Get all entity states |
+| `ha_get_states` | Get entity states (optional `domain` filter) |
 | `ha_get_state` | Get single entity state |
 | `ha_set_state` | Create/update entity state |
+| `ha_delete_state` | Delete an entity's state |
 | `ha_call_service` | Call a service (control devices) |
 | `ha_get_services` | List available services |
 | `ha_get_history` | Get state change history |
@@ -111,7 +112,7 @@ User → CLI (openclaw homeassistant) → client.ts → fetch() → HA REST API
 
 ## Development
 
-Run from `homeassistant-skill/` directory:
+Run from `homeassistant-plugin/` directory:
 
 ```bash
 npm run check       # Full suite: typecheck + lint + format + test
@@ -124,4 +125,4 @@ npm run test:watch  # Watch mode
 ```
 
 Test files:
-- `src/client.test.ts` - Client unit tests (mocked fetch, 33 tests)
+- `src/client.test.ts` - Client unit tests (mocked fetch, 35 tests)

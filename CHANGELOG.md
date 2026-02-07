@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release as OpenClaw plugin for Home Assistant
 - Pure TypeScript HTTP client wrapping the HA REST API via `fetch()`
 - Gateway RPC methods: `homeassistant.status`, `homeassistant.states`, `homeassistant.call_service`
-- 16 agent tools covering states, services, history, events, calendars, templates, config, and intents
+- 17 agent tools covering states, services, history, events, calendars, templates, config, and intents
 - CLI commands: `openclaw homeassistant` (status), `openclaw ha-states` (entity states)
 - Skill with agent instructions for smart home control workflows (`SKILL.md`)
 - TypeScript interfaces for all HA REST API types

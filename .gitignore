@@ -1,20 +1,12 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-.venv/
-env/
-.env
-
-# uv
-.python-version
+# Node
+node_modules/
+dist/
+build/
 
 # Config with secrets
 config.yaml
 config.yml
+.env
 
 # Logs
 logs/
@@ -31,24 +23,9 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Test
-.pytest_cache/
+# Test / Coverage
 .coverage
 htmlcov/
-
-# Build
-dist/
-build/
-*.egg-info/
-
-# Node
-node_modules/
-
-# Type checking
-.mypy_cache/
-
-# Ruff
-.ruff_cache/
 
 # Claude Code
 .claude/
