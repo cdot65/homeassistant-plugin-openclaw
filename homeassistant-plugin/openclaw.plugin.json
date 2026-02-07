@@ -2,7 +2,7 @@
   "id": "homeassistant",
   "name": "Home Assistant",
   "description": "Smart home control via the Home Assistant REST API — query states, call services, view history, fire events, and more",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "entrypoint": "index.ts",
   "skills": ["skills/homeassistant"],
   "configSchema": {

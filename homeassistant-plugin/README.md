@@ -10,11 +10,11 @@ npm install @cdot65/homeassistant
 
 ## Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `HA_BASE_URL` | Yes | -- | Home Assistant base URL |
-| `HA_TOKEN` | Yes | -- | Long-lived access token |
-| `HA_TIMEOUT_MS` | No | `10000` | Request timeout (ms) |
+| Variable        | Required | Default | Description             |
+| --------------- | -------- | ------- | ----------------------- |
+| `HA_BASE_URL`   | Yes      | --      | Home Assistant base URL |
+| `HA_TOKEN`      | Yes      | --      | Long-lived access token |
+| `HA_TIMEOUT_MS` | No       | `10000` | Request timeout (ms)    |
 
 ```bash
 export HA_BASE_URL="http://homeassistant.local:8123"

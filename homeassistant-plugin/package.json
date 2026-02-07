@@ -1,6 +1,6 @@
 {
   "name": "@cdot65/homeassistant",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Home Assistant plugin for OpenClaw - control smart home devices via the HA REST API",
   "type": "module",
   "main": "index.ts",
